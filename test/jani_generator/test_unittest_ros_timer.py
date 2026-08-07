@@ -68,8 +68,10 @@ def generic_global_timer_check(timer_rates: List[float], expected_time_step: int
     timers: List[RosTimer] = []
     for i, rate in enumerate(timer_rates):
         timers.append(RosTimer(f"timer{i}", rate))
-    ros_timer_scxml = make_global_timer_scxml(timers, max_time_ns)
+    ros_timer_scxml, model_time_step = make_global_timer_scxml(timers, max_time_ns)
     assert ros_timer_scxml is not None
+    assert model_time_step is not None
+    assert model_time_step.step == expected_time_step
     timer_scxmls = ros_timer_scxml.to_plain_scxml()
     assert len(timer_scxmls) == 1
     events_holder = EventsHolder()
@@ -131,3 +133,12 @@ def test_global_timer_generation_less_1_hz():
     We expect the global period to be 2ms.
     """
     generic_global_timer_check([0.5, 0.1], 2)
+
+
+def test_global_timer_generation_without_timers():
+    """
+    Test that a model declaring no ROS timer has no timer automaton and no time step.
+    """
+    ros_timer_scxml, model_time_step = make_global_timer_scxml([], int(100 * 1e9))
+    assert ros_timer_scxml is None, "A model without timers has no global timer automaton."
+    assert model_time_step is None, "A model without timers has no time step."
