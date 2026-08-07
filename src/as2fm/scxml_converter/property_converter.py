@@ -20,6 +20,7 @@ from typing import List, Optional
 import lxml.etree as ET
 from lxml.etree import _Element as XmlElement
 
+from as2fm.as2fm_common.common import ModelTimeStep
 from as2fm.scxml_converter.ascxml_extensions.ros_entries.ros_event_info import RosEventInfo
 from as2fm.scxml_converter.ascxml_extensions.ros_entries.ros_utils import (
     sanitize_ros_interface_name,
@@ -66,8 +67,7 @@ class PropertyConverter:
         self,
         input_path: str,
         ros_events_info: List[RosEventInfo],
-        model_time_step,
-        model_time_unit: str,
+        model_time_step: Optional[ModelTimeStep] = None,
     ):
         parser = ET.XMLParser(remove_comments=True)
         with open(input_path, "r", encoding="utf-8") as f:
@@ -87,8 +87,13 @@ class PropertyConverter:
 
         self._property_ids = []
         self._ros_events_info: List[RosEventInfo] = ros_events_info
-        self._model_time_step: int = model_time_step
-        self._model_time_unit: TimeUnit = PropertyConverter._string_to_time_unit(model_time_unit)
+        # both None for models without ROS timer - only time-constrained properties need them
+        self._model_time_step: Optional[ModelTimeStep] = model_time_step
+        self._model_time_unit: Optional[TimeUnit] = (
+            PropertyConverter._string_to_time_unit(model_time_step.unit)
+            if model_time_step is not None
+            else None
+        )
 
     def export_properties(self, output_path: str) -> None:
         scxml_properties = ET.Element("properties")
@@ -269,14 +274,16 @@ class PropertyConverter:
             output_property.set("expr", translated_property)
 
     def _convert_time(
-        self, time_interval: str, starting_time_unit: TimeUnit, target_time_unit: TimeUnit
+        self, time_interval: str, starting_time_unit: TimeUnit, target_time_unit: Optional[TimeUnit]
     ) -> str:
+        if self._model_time_step is None or target_time_unit is None:
+            raise ValueError("A time-constrained property needs a model time step.")
         interval_value = float(time_interval)
         time_unit_ratio = target_time_unit.value / starting_time_unit.value
         assert (
-            interval_value * time_unit_ratio >= self._model_time_step
+            interval_value * time_unit_ratio >= self._model_time_step.step
         ), "Property time smaller than model time"
-        interval_value = int((interval_value * time_unit_ratio) / self._model_time_step)
+        interval_value = int((interval_value * time_unit_ratio) / self._model_time_step.step)
 
         return str(interval_value)
 

@@ -18,7 +18,8 @@ Common functionalities used throughout the toolchain.
 """
 
 import re
-from typing import MutableSequence, Type, Union
+from dataclasses import dataclass
+from typing import Dict, MutableSequence, Type, Union
 
 from lxml.etree import _Comment as XmlComment
 from lxml.etree import _Element as XmlElement
@@ -43,6 +44,27 @@ ValidPlainScxmlTypes = Union[bool, int, float, MutableSequence, str]
 
 # Small number used for float comparison.
 EPSILON = 1e-3
+
+TIME_UNITS: Dict[str, float] = {
+    "s": 1,
+    "ms": 1e-3,
+    "us": 1e-6,
+    "ns": 1e-9,
+}
+
+
+@dataclass(frozen=True)
+class ModelTimeStep:
+    """
+    A time type, with both the step and the unit the step is expressed in.
+    """
+
+    step: int
+    unit: str
+
+    def __post_init__(self):
+        assert self.unit in TIME_UNITS, f"Unit {self.unit} not supported."
+        assert self.step > 0, f"The model time step must be positive, got {self.step}."
 
 
 def remove_namespace(tag: str) -> str:

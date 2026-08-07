@@ -22,6 +22,7 @@ import os
 from copy import deepcopy
 from typing import Dict, List, Optional, Tuple
 
+from as2fm.as2fm_common.common import ModelTimeStep
 from as2fm.as2fm_common.logging import get_error_msg
 from as2fm.jani_generator.jani_entries import JaniModel, JaniProperty
 from as2fm.jani_generator.ros_helpers.data_to_ros_info_transformer import DataToRosInfoTransformer
@@ -33,11 +34,7 @@ from as2fm.jani_generator.ros_helpers.ros_communication_handler import (
     update_ros_communication_handlers_servers,
 )
 from as2fm.jani_generator.ros_helpers.ros_service_handler import RosServiceHandler
-from as2fm.jani_generator.ros_helpers.ros_timer import (
-    RosTimer,
-    get_gcd_of_timer_periods,
-    make_global_timer_scxml,
-)
+from as2fm.jani_generator.ros_helpers.ros_timer import RosTimer, make_global_timer_scxml
 from as2fm.jani_generator.scxml_helpers.roaml_model import (
     FullModel,
     RoamlDataStructures,
@@ -77,7 +74,7 @@ from as2fm.scxml_converter.scxml_entries import (
 
 def generate_plain_scxml_models_and_timers(
     model: FullModel,
-) -> Tuple[List[ScxmlRoot], List[RosEventInfo], int, str]:
+) -> Tuple[List[ScxmlRoot], List[RosEventInfo], Optional[ModelTimeStep]]:
     """Generate all plain SCXML models loaded from the full model dictionary."""
     custom_data_types: Dict[str, StructDefinition] = {}
     for struct_format, path in model.data_declarations:
@@ -207,8 +204,7 @@ def generate_plain_scxml_models_and_timers(
     for plain_scxml in generate_plain_scxml_from_handlers(all_services | all_actions):
         plain_scxml_models.append(plain_scxml)
     assert model.max_time is not None, "Expected model.max_time to be defined here."
-    model_time_step, model_time_unit = get_gcd_of_timer_periods(all_timers)
-    timer_scxml = make_global_timer_scxml(all_timers, model.max_time)
+    timer_scxml, model_time_step = make_global_timer_scxml(all_timers, model.max_time)
     if timer_scxml is not None:
         timer_scxml.set_custom_data_types(custom_data_types)
         plain_scxmls = timer_scxml.to_plain_scxml()
@@ -219,7 +215,7 @@ def generate_plain_scxml_models_and_timers(
         action_info=action_info,
     )
     ros_events_info = info_transformer.transform_data()
-    return plain_scxml_models, ros_events_info, model_time_step, model_time_unit
+    return plain_scxml_models, ros_events_info, model_time_step
 
 
 def export_plain_scxml_models(
@@ -318,8 +314,8 @@ def interpret_top_level_xml(
     loaded_roaml = RoamlMain(xml_path)
     model = loaded_roaml.get_loaded_model()
 
-    plain_scxml_models, ros_events_info, model_time_step, model_time_unit = (
-        generate_plain_scxml_models_and_timers(model)
+    plain_scxml_models, ros_events_info, model_time_step = generate_plain_scxml_models_and_timers(
+        model
     )
 
     if scxmls_dir is not None:
@@ -329,7 +325,6 @@ def interpret_top_level_xml(
                 input_path=model.properties["xml"],
                 ros_events_info=ros_events_info,
                 model_time_step=model_time_step,
-                model_time_unit=model_time_unit,
             )
             property_converter.export_properties(plain_scxml_dir)
         export_plain_scxml_models(plain_scxml_dir, plain_scxml_models)
