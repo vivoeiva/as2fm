@@ -20,7 +20,7 @@ Representation of ROS timers.
 from math import floor, gcd
 from typing import List, Optional, Tuple
 
-from as2fm.as2fm_common.common import TIME_UNITS, ModelTimeStep
+from as2fm.as2fm_common.common import TIME_UNITS, ModelTimeStep, convert_time_between_units
 from as2fm.scxml_converter.ascxml_extensions.ros_entries import (
     AscxmlRootROS,
     RosField,
@@ -49,24 +49,11 @@ def is_global_timer_event(event_name: str):
     return event_name == f"{GLOBAL_TIMER_TICK_EVENT}"
 
 
-def convert_time_between_units(time: int, from_unit: str, to_unit: str) -> int:
-    """Convert time from one unit to another."""
-    assert from_unit in TIME_UNITS, f"Unit {from_unit} not supported."
-    assert to_unit in TIME_UNITS, f"Unit {to_unit} not supported."
-    assert time >= 0, "Time must be positive."
-    if from_unit == to_unit:
-        return time
-    new_time = time * TIME_UNITS[from_unit] / TIME_UNITS[to_unit]
-    # make sure we do not lose precision
-    assert int(new_time) == new_time, f"Conversion from {from_unit} to {to_unit} is not exact."
-    return int(new_time)
-
-
-def _to_best_int_period(period: float) -> Tuple[int, str, float]:
+def _to_best_int_period(period: float) -> Tuple[int, str, int]:
     """Choose the best time unit for a given period.
     Such that the period is an integer and the unit is the largest possible."""
     for unit, factor in TIME_UNITS.items():
-        period_in_unit = period / factor
+        period_in_unit = period * factor
         int_period_in_unit = floor(period_in_unit)
         if int_period_in_unit == period_in_unit:
             # This period exactly fits into the unit
@@ -96,7 +83,7 @@ def get_gcd_of_timer_periods(timers: List[RosTimer]) -> Tuple[int, str]:
         raise ValueError("At least one timer is required.")
     common_unit = "s"
     for timer in timers:
-        if TIME_UNITS[timer.unit] < TIME_UNITS[common_unit]:
+        if TIME_UNITS[timer.unit] > TIME_UNITS[common_unit]:
             common_unit = timer.unit
     timer_periods = [
         convert_time_between_units(timer.period_int, timer.unit, common_unit) for timer in timers
@@ -190,7 +177,7 @@ def _get_current_time_to_clock_msg_publish(
         return RosTopicPublish(
             clock_decl, [RosField("sec", expr=curr_time_var), RosField("nanosec", expr="0")]
         )
-    n_units_per_sec = round(1.0 / TIME_UNITS[time_unit])
+    n_units_per_sec = TIME_UNITS[time_unit]
     time_unit_in_nsec = 1e9 / n_units_per_sec
     return RosTopicPublish(
         clock_decl,

@@ -14,27 +14,17 @@
 # limitations under the License.
 
 import os
-from enum import Enum
 from typing import List, Optional
 
 import lxml.etree as ET
 from lxml.etree import _Element as XmlElement
 
-from as2fm.as2fm_common.common import ModelTimeStep
+from as2fm.as2fm_common.common import ModelTimeStep, convert_time_between_units
 from as2fm.scxml_converter.ascxml_extensions.ros_entries.ros_event_info import RosEventInfo
 from as2fm.scxml_converter.ascxml_extensions.ros_entries.ros_utils import (
     sanitize_ros_interface_name,
 )
 from as2fm.scxml_converter.pattern_translator import Pattern, PatternInfo, Scope, translate_pattern
-
-
-class TimeUnit(Enum):
-    """List of supported time units."""
-
-    SECONDS = 1
-    MILLISECONDS = 1_000
-    MICROSECONDS = 1_000_000
-    NANOSECONDS = 1_000_000_000
 
 
 class NoneAutomaton:
@@ -87,13 +77,12 @@ class PropertyConverter:
 
         self._property_ids = []
         self._ros_events_info: List[RosEventInfo] = ros_events_info
-        # both None for models without ROS timer - only time-constrained properties need them
+        # None for models without ROS timer - only time-constrained properties need it
         self._model_time_step: Optional[ModelTimeStep] = model_time_step
-        self._model_time_unit: Optional[TimeUnit] = (
-            PropertyConverter._string_to_time_unit(model_time_step.unit)
-            if model_time_step is not None
-            else None
-        )
+
+    @property
+    def _model_time_unit(self) -> Optional[str]:
+        return self._model_time_step.unit if self._model_time_step is not None else None
 
     def export_properties(self, output_path: str) -> None:
         scxml_properties = ET.Element("properties")
@@ -213,9 +202,7 @@ class PropertyConverter:
                     for event in child:
                         events.append(event.text)
                 if tag == "time_interval":
-                    property_time_unit = PropertyConverter._string_to_time_unit(
-                        child.attrib["time_unit"]
-                    )
+                    property_time_unit = child.attrib["time_unit"]
                     if child.attrib.get("time") is None:
                         after = child.attrib.get("after")
                         within = child.attrib.get("within")
@@ -274,37 +261,23 @@ class PropertyConverter:
             output_property.set("expr", translated_property)
 
     def _convert_time(
-        self, time_interval: str, starting_time_unit: TimeUnit, target_time_unit: Optional[TimeUnit]
+        self, time_interval: str, starting_time_unit: str, target_time_unit: Optional[str]
     ) -> str:
         if self._model_time_step is None or target_time_unit is None:
             raise ValueError("A time-constrained property needs a model time step.")
-        interval_value = float(time_interval)
-        time_unit_ratio = target_time_unit.value / starting_time_unit.value
+        interval_value = convert_time_between_units(
+            float(time_interval), starting_time_unit, target_time_unit
+        )
         assert (
-            interval_value * time_unit_ratio >= self._model_time_step.step
+            interval_value >= self._model_time_step.step
         ), "Property time smaller than model time"
-        interval_value = int((interval_value * time_unit_ratio) / self._model_time_step.step)
-
-        return str(interval_value)
+        return str(int(interval_value / self._model_time_step.step))
 
     def _exists_none_target(self) -> bool:
         for info in self._ros_events_info:
             if info.target == "NONE":
                 return True
         return False
-
-    @staticmethod
-    def _string_to_time_unit(time_unit: str) -> TimeUnit:
-        assert time_unit in ["s", "ms", "us", "ns"], "Unsupported time unit"
-        match time_unit:
-            case "s":
-                return TimeUnit.SECONDS
-            case "ms":
-                return TimeUnit.MILLISECONDS
-            case "us":
-                return TimeUnit.MICROSECONDS
-            case "ns":
-                return TimeUnit.NANOSECONDS
 
     @staticmethod
     def _get_most_relevant_entry(entries: List[RosEventInfo]) -> RosEventInfo:

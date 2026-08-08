@@ -21,7 +21,7 @@ from warnings import warn
 import lxml.etree as ET
 from lxml.etree import _Element as XmlElement
 
-from as2fm.as2fm_common.common import remove_namespace, string_as_bool
+from as2fm.as2fm_common.common import convert_time_between_units, remove_namespace, string_as_bool
 from as2fm.as2fm_common.logging import (
     check_assertion,
     get_error_msg,
@@ -119,10 +119,8 @@ class RoamlParameters:
         :param time_element: The time element to interpret.
         :return: The interpreted time in nanoseconds.
         """
-        TIME_MULTIPLIERS = {"s": 1_000_000_000, "ms": 1_000_000, "us": 1_000, "ns": 1}
         time_unit = time_element.attrib["unit"]
-        assert time_unit in TIME_MULTIPLIERS, f"Invalid time unit: {time_unit}"
-        return int(time_element.attrib["value"]) * TIME_MULTIPLIERS[time_unit]
+        return convert_time_between_units(int(time_element.attrib["value"]), time_unit, "ns")
 
     def get_max_time(self) -> Optional[int]:
         return self._max_time
