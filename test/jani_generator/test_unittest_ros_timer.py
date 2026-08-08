@@ -111,6 +111,13 @@ def test_ros_timer_3hz():
     generic_ros_timer_check(3.0, "ms", 333)
 
 
+def test_ros_timer_1250khz():
+    """
+    Test the RosTimer class with a 1.25 MHz timer.
+    """
+    generic_ros_timer_check(1.25e6, "ns", 800)
+
+
 def test_global_timer_generation_1_2_5_hz():
     """
     Test the generation of the global timer automaton with 1, 2, and 5 Hz timers.
