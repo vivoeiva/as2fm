@@ -35,6 +35,9 @@ from as2fm.jani_generator.ros_helpers.ros_communication_handler import (
 )
 from as2fm.jani_generator.ros_helpers.ros_service_handler import RosServiceHandler
 from as2fm.jani_generator.ros_helpers.ros_timer import RosTimer, make_global_timer_scxml
+from as2fm.jani_generator.scxml_helpers.property_pattern_compiler import (
+    compile_patterns_to_jani_properties,
+)
 from as2fm.jani_generator.scxml_helpers.roaml_model import (
     FullModel,
     RoamlDataStructures,
@@ -318,6 +321,7 @@ def interpret_top_level_xml(
         model
     )
 
+    property_converter: Optional[PropertyConverter] = None
     if scxmls_dir is not None:
         plain_scxml_dir = os.path.join(model_dir, scxmls_dir)
         if model.properties.get("xml") is not None:
@@ -332,10 +336,24 @@ def interpret_top_level_xml(
         jani_model: JaniModel = convert_multiple_scxmls_to_jani(
             plain_scxml_models, model.max_array_size
         )
-        with open(model.properties["jani"], "r", encoding="utf-8") as f:
-            all_properties = json.load(f)["properties"]
+
+        all_properties = []
+        jani_properties_path = model.properties.get("jani")
+        if jani_properties_path is not None:
+            with open(jani_properties_path, "r", encoding="utf-8") as f:
+                all_properties = json.load(f)["properties"]
             for property_dict in all_properties:
                 jani_model.add_jani_property(JaniProperty.from_dict(property_dict))
+
+        # Compile XML declared specification patterns into JANI properties
+        if property_converter is not None:
+            existing_property_names = {p["name"] for p in all_properties}
+            for jani_prop in compile_patterns_to_jani_properties(
+                property_converter.compiled_patterns,
+                property_converter.resolved_ports,
+                existing_property_names,
+            ):
+                jani_model.add_jani_property(jani_prop)
 
         # Preprocess the JANI file, to remove non-standard artifacts
         preprocess_jani_expressions(jani_model)

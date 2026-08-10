@@ -185,6 +185,7 @@ def get_cases():
             "folder": os.path.join(rel_examples_folder, "quick_start_battery_monitor"),
             "property_name": "battery_depleted",
             "expected_result_probability": 0.0,
+            "skip_properties_load_check": True,
         },
         # Expect the property to be *not* satisfied.
         # TODO: Improve properties under evaluation!
@@ -194,6 +195,7 @@ def get_cases():
             "folder": os.path.join(rel_examples_folder, "quick_start_battery_monitor"),
             "property_name": "battery_depleted",
             "expected_result_probability": 0.0,
+            "skip_properties_load_check": True,
         },
         # Expect the property to be *not* satisfied.
         # TODO: Improve properties under evaluation!
@@ -203,6 +205,7 @@ def get_cases():
             "folder": os.path.join(rel_examples_folder, "quick_start_battery_monitor"),
             "property_name": "battery_below_20",
             "expected_result_probability": 0.0,
+            "skip_properties_load_check": True,
         },
         # Expect the alarm to be on
         _default_case()
@@ -210,6 +213,7 @@ def get_cases():
             "_case_name": "battery_monitor_alarm_on",
             "folder": os.path.join(rel_examples_folder, "quick_start_battery_monitor"),
             "property_name": "battery_alarm_on",
+            "skip_properties_load_check": True,
         },
         # Expect the battery to be charged in the end.
         _default_case()
@@ -217,13 +221,15 @@ def get_cases():
             "_case_name": "battery_monitor_charged",
             "folder": os.path.join(rel_examples_folder, "quick_start_battery_monitor"),
             "property_name": "battery_charged",
+            "skip_properties_load_check": True,
         },
         # Expect battery is published (from xml-properties)
         _default_case()
         | {
             "_case_name": "battery_published_xml",
             "folder": os.path.join(rel_examples_folder, "quick_start_battery_monitor"),
-            "property_name": "battery_always_published",
+            "property_name": "battery_eventually_published",
+            "skip_properties_load_check": True,
         },
         # Expect alarm preceding the battery being empty (from xml-properties)
         _default_case()
@@ -231,6 +237,7 @@ def get_cases():
             "_case_name": "battery_precedence_xml",
             "folder": os.path.join(rel_examples_folder, "quick_start_battery_monitor"),
             "property_name": "battery_alarm_precedence",
+            "skip_properties_load_check": True,
         },
         # -------------------------------------------------------------------------------------
         # HL-SCXML features

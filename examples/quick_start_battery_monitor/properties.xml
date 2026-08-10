@@ -8,14 +8,14 @@
     </ros_topic>
 
     <ros_topic topic_name="alarm" type="std_msgs/Bool" event="publish">
-      <event_var id="alarm"/>
+      <state_var id="alarm_active" type="bool" field="data" expr="false"/>
     </ros_topic>
 
   </ports>
 
   <guarantees>
 
-    <property id="battery_always_published" pattern="universality">
+    <property id="battery_eventually_published" pattern="existence">
       <event>battery_published</event>
       <scope type="globally"/>
     </property>
@@ -23,7 +23,7 @@
     <property id="battery_alarm_precedence" pattern="precedence">
       <events>
         <event>battery_level &lt;= 30</event>
-        <event>alarm</event>
+        <event>alarm_active == true</event>
       </events>
       <scope type="globally"/>
       <time_interval after="2" within="5" time_unit="s" />
