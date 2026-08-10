@@ -14,7 +14,8 @@
 # limitations under the License.
 
 import os
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
 import lxml.etree as ET
 from lxml.etree import _Element as XmlElement
@@ -25,6 +26,21 @@ from as2fm.scxml_converter.ascxml_extensions.ros_entries.ros_utils import (
     sanitize_ros_interface_name,
 )
 from as2fm.scxml_converter.pattern_translator import Pattern, PatternInfo, Scope, translate_pattern
+
+
+@dataclass(frozen=True)
+class PortBinding:
+    """
+    Resolves a declared state_var/event_var id to the JANI variable names.
+
+    :attribute kind: "state" or "event".
+    :attribute jani_valid_var: validity variable
+    :attribute jani_field_var: variable holding the value, None for "event"
+    """
+
+    kind: str
+    jani_valid_var: str
+    jani_field_var: Optional[str] = None
 
 
 class NoneAutomaton:
@@ -79,6 +95,8 @@ class PropertyConverter:
         self._ros_events_info: List[RosEventInfo] = ros_events_info
         # None for models without ROS timer - only time-constrained properties need it
         self._model_time_step: Optional[ModelTimeStep] = model_time_step
+        self.resolved_ports: Dict[str, PortBinding] = {}
+        self.compiled_patterns: List[Tuple[str, PatternInfo]] = []
 
     @property
     def _model_time_unit(self) -> Optional[str]:
@@ -165,7 +183,13 @@ class PropertyConverter:
                     v.set("expr", var.attrib["expr"])
                     for field in ros_info_entry.fields:
                         if var.attrib["field"] in field.keys():
-                            v.set("param", field[var.attrib["field"]])
+                            param_name = field[var.attrib["field"]]
+                            v.set("param", param_name)
+                            self.resolved_ports[var.attrib["id"]] = PortBinding(
+                                kind="state",
+                                jani_valid_var=f"{ros_info_entry.scxml_event_name}.valid",
+                                jani_field_var=(f"{ros_info_entry.scxml_event_name}__{param_name}"),
+                            )
                 if var.tag == "goal_id":
                     v.set("type", "int32")
                     v.set("expr", var.attrib["expr"])
@@ -174,6 +198,11 @@ class PropertyConverter:
                     v.set("type", "int32")
                     v.set("expr", var.attrib["expr"])
                     v.set("param", "code")
+                if var.tag == "event_var":
+                    self.resolved_ports[var.attrib["id"]] = PortBinding(
+                        kind="event",
+                        jani_valid_var=f"{ros_info_entry.scxml_event_name}.valid",
+                    )
 
     def _process_assumes(self, assumes: XmlElement) -> None:
         self._process_properties(assumes, self._assumes_node)
@@ -248,13 +277,23 @@ class PropertyConverter:
                 case _:
                     raise Exception
 
+            match pattern:
+                case Pattern.RESPONSE:
+                    predicates = {"request": events[0], "response": events[1]}
+                case Pattern.PRECEDENCE:
+                    predicates = {"first": events[0], "second": events[1]}
+                case _:
+                    # universality, absence, recurrence, existence
+                    predicates = {"event": events[0]}
+
             property_pattern = PatternInfo(
                 pattern=pattern,
                 scope=scope,
-                events=events,
+                predicates=predicates,
                 scope_events=scope_events,
                 time=time,
             )
+            self.compiled_patterns.append((property_id, property_pattern))
             translated_property = translate_pattern(property_pattern)
             output_property = ET.SubElement(output_properties, "property")
             output_property.set("id", property_id)
@@ -268,9 +307,7 @@ class PropertyConverter:
         interval_value = convert_time_between_units(
             float(time_interval), starting_time_unit, target_time_unit
         )
-        assert (
-            interval_value >= self._model_time_step.step
-        ), "Property time smaller than model time"
+        assert interval_value >= self._model_time_step.step, "Property time smaller than model time"
         return str(int(interval_value / self._model_time_step.step))
 
     def _exists_none_target(self) -> bool:

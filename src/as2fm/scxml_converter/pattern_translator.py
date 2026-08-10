@@ -17,7 +17,7 @@
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from jinja2 import Template
 
@@ -78,14 +78,14 @@ class PatternInfo:
 
     :attribute pattern: The pattern of the property.
     :attribute scope: The scope of the pattern.
-    :attribute events: The list of predicates involved in the property.
+    :attribute predicates: Named predicates involved in the property.
     :attribute scope_events: The list of predicates defining the scope of the property.
     :attribute time: Value defining an interval in the property.
     """
 
     pattern: Pattern
     scope: Scope
-    events: List[str] = field(default_factory=list)
+    predicates: Dict[str, str] = field(default_factory=dict)
     scope_events: List[str] = field(default_factory=list)
     time: Optional[Union[str, Tuple[str, str]]] = None
 
@@ -113,13 +113,13 @@ def _translate_universality(pattern: PatternInfo) -> str:
     if pattern.scope == Scope.GLOBALLY:
         template = Template(PropertyTemplates.MTL_UNIVERSALITY_GLOBALLY)
         property = template.render(
-            event=pattern.events[0],
+            event=pattern.predicates["event"],
             time=pattern.time,
         )
     if pattern.scope == Scope.AFTER:
         template = Template(PropertyTemplates.MTL_UNIVERSALITY_AFTER)
         property = template.render(
-            event=pattern.events[0],
+            event=pattern.predicates["event"],
             time=pattern.time,
             scope_event=pattern.scope_events[0],
         )
@@ -131,13 +131,13 @@ def _translate_absence(pattern: PatternInfo) -> str:
     if pattern.scope == Scope.GLOBALLY:
         template = Template(PropertyTemplates.MTL_ABSENCE_GLOBALLY)
         property = template.render(
-            event=pattern.events[0],
+            event=pattern.predicates["event"],
             time=pattern.time,
         )
     if pattern.scope == Scope.AFTER:
         template = Template(PropertyTemplates.MTL_ABSENCE_AFTER)
         property = template.render(
-            event=pattern.events[0],
+            event=pattern.predicates["event"],
             time=pattern.time,
             scope_event=pattern.scope_events[0],
         )
@@ -149,8 +149,8 @@ def _translate_response(pattern: PatternInfo) -> str:
     if pattern.scope == Scope.GLOBALLY:
         template = Template(PropertyTemplates.MTL_RESPONSE_GLOBALLY)
         property = template.render(
-            request=pattern.events[0],
-            response=pattern.events[1],
+            request=pattern.predicates["request"],
+            response=pattern.predicates["response"],
             time=pattern.time,
         )
     return property
@@ -162,7 +162,7 @@ def _translate_recurrence(pattern: PatternInfo) -> str:
     if pattern.scope == Scope.GLOBALLY:
         template = Template(PropertyTemplates.MTL_RECURRENCE_GLOBALLY)
         property = template.render(
-            event=pattern.events[0],
+            event=pattern.predicates["event"],
             time=pattern.time,
         )
     return property
@@ -175,8 +175,8 @@ def _translate_precedence(pattern: PatternInfo) -> str:
     if pattern.scope == Scope.GLOBALLY:
         template = Template(PropertyTemplates.MTL_PRECEDENCE_GLOBALLY)
         property = template.render(
-            first=pattern.events[0],
-            second=pattern.events[1],
+            first=pattern.predicates["first"],
+            second=pattern.predicates["second"],
             after=pattern.time[0],
             within=pattern.time[1],
         )
@@ -188,7 +188,41 @@ def _translate_existence(pattern: PatternInfo) -> str:
     if pattern.scope == Scope.GLOBALLY:
         template = Template(PropertyTemplates.MTL_EXISTENCE_GLOBALLY)
         property = template.render(
-            event=pattern.events[0],
+            event=pattern.predicates["event"],
             time=pattern.time,
         )
     return property
+
+
+class JaniPatternOp(Enum):
+    """The JANI path-property operator a pattern flattens to."""
+
+    GLOBALLY = "G"
+    EVENTUALLY = "F"
+    UNTIL = "U"
+
+
+JaniExpressionTree = Union[str, Tuple]
+
+
+@dataclass(frozen=True)
+class JaniPatternMapping:
+    """
+    Description of how to compile one (Pattern, Scope) combination into a JANI property.
+
+    :attribute op: JANI property operator to use (G, F, or U).
+    :attribute expression: An expression tree, string - predicate, tuple - (operator, *operands).
+    """
+
+    op: JaniPatternOp
+    expression: JaniExpressionTree
+
+
+JANI_PATTERN_MAPPING: Dict[Tuple[Pattern, Scope], JaniPatternMapping] = {
+    (Pattern.UNIVERSALITY, Scope.GLOBALLY): JaniPatternMapping(JaniPatternOp.GLOBALLY, "event"),
+    (Pattern.ABSENCE, Scope.GLOBALLY): JaniPatternMapping(JaniPatternOp.GLOBALLY, ("not", "event")),
+    (Pattern.EXISTENCE, Scope.GLOBALLY): JaniPatternMapping(JaniPatternOp.EVENTUALLY, "event"),
+    (Pattern.PRECEDENCE, Scope.GLOBALLY): JaniPatternMapping(
+        JaniPatternOp.UNTIL, ("until", ("not", "second"), "first")
+    ),
+}
