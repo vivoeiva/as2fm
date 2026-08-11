@@ -503,6 +503,8 @@ def get_cases():
             "folder": "uc1_docking",
             "property_name": "charging_starts",
             "trace_length_limit": 1_000_000,
+            "n_threads": 8,
+            "disable_cache": True,
         },
         # UC1 docking BT (with a bug).
         _default_case()
@@ -514,6 +516,7 @@ def get_cases():
             "expected_result_probability": 0.0,
             "trace_length_limit": 1_000_000,
             "n_threads": 8,
+            "disable_cache": True,
         },
         # UC1 Complete Mission
         _default_case()
@@ -585,6 +588,18 @@ def get_cases():
             "_case_name": "uc3_museum_guide",
             "folder": os.path.join("uc3_museum_guide", "Main"),
             "property_name": "tree_success",
+        },
+        # overarching tutorial
+        _default_case()
+        | {
+            "_case_name": "overarching_tutorial_locations",
+            "folder": "overarching_tutorial",
+            "model_xml": "main_locations.xml",
+            "property_name": "butter_at_table",
+            "skip_properties_load_check": True,
+            "n_threads": 8,
+            "batch_size": 5,
+            "disable_cache": True,
         },
     ]
 

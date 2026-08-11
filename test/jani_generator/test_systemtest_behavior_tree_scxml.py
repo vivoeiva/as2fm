@@ -112,6 +112,62 @@ class TestConversion(unittest.TestCase):
             expected_result_probability=1.0,
         )
 
+    def test_ifthenelse_then_tree_success(self):
+        """Test the ifthenelse BT plugins then branch for tree success."""
+        self._test_with_main(
+            os.path.join("bt_test_models", "main_test_ifthenelse_then.xml"),
+            "tree_success",
+            expected_result_probability=1.0,
+        )
+
+    def test_ifthenelse_then_counter(self):
+        """Test the ifthenelse BT plugins then branch for correct number of ticks."""
+        self._test_with_main(
+            os.path.join("bt_test_models", "main_test_ifthenelse_then.xml"),
+            "counter_then_10",
+            expected_result_probability=1.0,
+        )
+
+    def test_ifthenelse_else_tree_success(self):
+        """Test the ifthenelse BT plugins else branch for tree success."""
+        self._test_with_main(
+            os.path.join("bt_test_models", "main_test_ifthenelse_else.xml"),
+            "tree_success",
+            expected_result_probability=1.0,
+        )
+
+    def test_ifthenelse_else_counter(self):
+        """Test the ifthenelse BT plugins else branch for correct number of ticks."""
+        self._test_with_main(
+            os.path.join("bt_test_models", "main_test_ifthenelse_else.xml"),
+            "counter_else_10",
+            expected_result_probability=1.0,
+        )
+
+    def test_parallel_success(self):
+        """Test the parallel node with success threshold met."""
+        self._test_with_main(
+            os.path.join("bt_test_models", "main_test_parallel_success.xml"),
+            "parallel_success_status_action_child_test",
+            expected_result_probability=1.0,
+        )
+
+    def test_parallel_failure(self):
+        """Test the parallel node with failure threshold met."""
+        self._test_with_main(
+            os.path.join("bt_test_models", "main_test_parallel_failure.xml"),
+            "parallel_failure_status_action_child_test",
+            expected_result_probability=1.0,
+        )
+
+    def test_parallel_running(self):
+        """Test the parallel node with running children."""
+        self._test_with_main(
+            os.path.join("bt_test_models", "main_test_parallel_running.xml"),
+            "parallel_running_status_action_child_test",
+            expected_result_probability=1.0,
+        )
+
 
 if __name__ == "__main__":
     pytest.main(["-s", "-v", __file__])

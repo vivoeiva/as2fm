@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Tuple
 from lxml import etree as ET
 from lxml.etree import _Element as XmlElement
 
-from as2fm.as2fm_common.array_type import get_default_expression_for_type, value_to_string_expr
+from as2fm.as2fm_common.common import get_default_expression_for_type, value_to_string_expr
 from as2fm.as2fm_common.logging import (
     INTERNAL_FILEPATH_ATTR,
     get_error_msg,
@@ -40,6 +40,7 @@ from as2fm.scxml_converter.ascxml_extensions.bt_entries import (
 from as2fm.scxml_converter.ascxml_extensions.bt_entries.bt_utils import (
     BT_BLACKBOARD_EVENT_VALUE,
     BT_BLACKBOARD_GET,
+    BT_BLACKBOARD_MODEL,
     BT_BLACKBOARD_REQUEST,
     BT_N_CHILDREN_PORT,
     generate_bt_blackboard_set,
@@ -96,7 +97,7 @@ def generate_blackboard_scxml(bt_blackboard_vars: Dict[str, str]) -> ScxmlRoot:
     """Generate an SCXML model that handles all BT-related synchronization."""
     assert len(bt_blackboard_vars) > 0, "Cannot generate BT Blackboard, no variables"
     # TODO: Append the name of the related BT, as in generate_bt_root_scxml
-    scxml_model_name = "bt_blackboard_fsm"
+    scxml_model_name = BT_BLACKBOARD_MODEL
     state_name = "idle"
     idle_state = ScxmlState(state_name)
     bt_data: List[ScxmlData] = []
