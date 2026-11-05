@@ -211,7 +211,7 @@ class JaniPatternMapping:
     Description of how to compile one (Pattern, Scope) combination into a JANI property.
 
     :attribute op: JANI property operator to use (G, F, or U).
-    :attribute expression: An expression tree, string - predicate, tuple - (operator, *operands).
+    :attribute expression: An expression tree, string - predicate, tuple - (operator, operands).
     """
 
     op: JaniPatternOp
